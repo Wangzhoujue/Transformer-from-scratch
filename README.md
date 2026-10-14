@@ -1,64 +1,79 @@
 # Transformer from Scratch in PyTorch
 
-基于 PyTorch 手动实现的经典 Encoder–Decoder Transformer，用于学习和理解 Transformer 的核心结构。
+一个用于学习 Transformer 原理的 Encoder–Decoder 实现。项目使用 PyTorch 的张量、参数和基础网络层，手动组织注意力计算、mask 处理、位置编码、归一化以及编码器和解码器堆叠。
 
-## 已实现
+## 实现内容
 
-- Token Embedding
-- 正弦位置编码（Sinusoidal Positional Encoding）
-- 多头自注意力（Multi-Head Attention）
-- Padding Mask 与 Causal Mask
-- 前馈神经网络（Feed-Forward Network）
-- Layer Normalization
-- Encoder / Decoder 堆叠
-- Decoder 的 masked self-attention 与 encoder–decoder cross-attention
-- 词表输出层（Generator）
+- Token embedding
+- 正弦位置编码（sinusoidal positional encoding）
+- 缩放点积注意力（scaled dot-product attention）
+- 多头注意力（multi-head attention）
+- Padding mask 与 causal mask
+- 两层前馈网络（feed-forward network）
+- Layer normalization
+- Encoder self-attention
+- Decoder masked self-attention
+- Encoder–decoder cross-attention
+- 词表投影层（generator）
 
-## 项目特点
+项目没有调用 `torch.nn.Transformer` 或 `torch.nn.MultiheadAttention`。PyTorch 仅用于张量运算、参数管理、线性层、Dropout 和自动求导。
 
-核心注意力计算、mask 处理、位置编码、归一化和 Encoder–Decoder 结构均由本项目手动组织实现。项目使用 PyTorch 提供张量运算、参数管理、线性层、Dropout 和自动求导能力，没有调用 `torch.nn.Transformer` 或 `torch.nn.MultiheadAttention`。
-
-## 文件
+## 项目结构
 
 ```text
-Transformer.py   # Transformer 模型实现
+Transformer.py   # 模型实现
+README.md        # 项目说明
 ```
 
-## 快速使用
+## 安装
+
+```bash
+pip install torch
+```
+
+需要 Python 3.9 或更高版本。
+
+## 快速开始
 
 ```python
 import torch
 from Transformer import Transformer
 
+vocab_size = 10_000
+src_len = 16
+tgt_len = 12
+
 model = Transformer(
     d_model=512,
-    vocab_size=10000,
+    vocab_size=vocab_size,
     num_head=8,
     d_ff=2048,
     num_Layers=6,
     max_len=512,
 )
 
-src = torch.randint(0, 10000, (2, 16))
-tgt = torch.randint(0, 10000, (2, 12))
+src = torch.randint(0, vocab_size, (2, src_len))
+tgt = torch.randint(0, vocab_size, (2, tgt_len))
 
-# mask 使用 1 表示保留，0 表示屏蔽
-src_mask = torch.ones(2, 16, dtype=torch.bool)
-tgt_mask = torch.tril(torch.ones(11, 11, dtype=torch.bool))
+# mask 中 1/True 表示保留，0/False 表示屏蔽。
+src_mask = torch.ones(2, src_len, dtype=torch.bool)
+decoder_len = tgt_len - 1
+tgt_mask = torch.tril(torch.ones(decoder_len, decoder_len, dtype=torch.bool))
 
 logits = model(src, tgt, src_mask, tgt_mask)
-print(logits.shape)  # [2, 11, 10000]
+print(logits.shape)  # torch.Size([2, 11, 10000])
 ```
 
-## 说明
+`Transformer.forward` 会将 `tgt[:, :-1]` 作为 decoder 输入，因此 `tgt_mask` 的序列长度应为 `tgt.size(1) - 1`。模型输出的是未归一化 logits，形状为 `[batch_size, target_length - 1, vocab_size]`，训练时通常配合交叉熵损失使用。
 
-这是一个学习型实现，当前仓库主要展示模型结构本身，不包含完整数据集、训练脚本或预训练权重。`Transformer.forward` 会使用 `tgt[:, :-1]` 作为 decoder 输入，因此目标 mask 应与截断后的目标序列长度对应。
+## Mask 约定
 
-## 依赖
+`src_mask` 可以使用形状 `[batch_size, source_length]` 的 padding mask；`tgt_mask` 可以使用形状 `[target_length, target_length]` 的下三角 causal mask。mask 的值为 0 的位置不会参与注意力计算。
 
-- Python 3.9+
-- PyTorch
+## 项目定位
+
+这是一个面向学习和源码阅读的实现，重点是展示 Transformer 的核心结构。目前仓库不包含完整数据集、训练脚本、分词器或预训练权重，因此不直接提供翻译质量或论文结果复现。
 
 ## License
 
-代码用于学习和交流。若要用于生产环境，请根据实际需求补充测试、训练流程和许可证信息。
+本项目用于学习和交流。正式使用前，请根据实际需求补充测试、训练流程和明确的开源许可证。
